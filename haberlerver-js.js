@@ -1,5 +1,5 @@
 /*
- * Haberlerver.com — External JavaScript bundle for Blogger V1
+ * Haberlerver.com — External JavaScript bundle for Blogger V2
  * Upload this file to GitHub and serve it using a stable raw/CDN URL.
  * The Blogger theme sets window.__HV_EXTERNAL_JS_MODULES flags at original module locations.
  * Do not move Blogger XML expressions or schema code into this file.
@@ -2200,6 +2200,71 @@ body.dark .mm-root .mm-ayrac, html.dark .mm-root .mm-ayrac, [data-theme="dark"] 
   } });
   /* BİTİŞ: Ekonomi ve piyasa haber sliderı */
 
+
+  /* BAŞLANGIÇ: Makale içi ve çevresindeki reklam widget konumlandırması */
+  modules.push({ id: "article-ad-placement", run: function () {
+
+    //<![CDATA[
+    (function () {
+      'use strict';
+      // One synchronous pass: slot dimensions are reserved in CSS before the move.
+      // No MutationObserver, retry loop, polling, or feed request is used here.
+      if (!document.body || !(document.body.classList.contains('item') || document.body.classList.contains('item-view'))) return;
+      var targets = [
+        ['HVAdUpper', 'hv-static-ad-top'],
+        ['HVAdLower', 'hv-static-ad-lower'],
+        ['HVAdLowerSecond', 'hv-static-ad-lower-second'],
+        ['HVAdEnd', 'hv-static-ad-end'],
+        ['HVAdEndSecond', 'hv-static-ad-end-second'],
+        ['HVSidebarAdBefore', 'hv-sidebar-ad-before-slot'],
+        ['HVSidebarAdAfter', 'hv-sidebar-ad-after-slot']
+      ];
+      targets.forEach(function (pair) {
+        var source = document.getElementById(pair[0]);
+        var target = document.getElementById(pair[1]);
+        var widget = source && source.querySelector('.widget');
+        if (!target || !widget || widget.getAttribute('data-hv-mounted') === '1') return;
+        var placeholder = target.querySelector('.hv-ad-slot-placeholder');
+        if (placeholder) placeholder.remove();
+        widget.classList.add('hv-ad-managed-widget');
+        widget.setAttribute('data-hv-mounted', '1');
+        target.appendChild(widget);
+      });
+
+      // Makale içi reklam: en az 6 H2 varsa dördüncü H2'den sonraki ilk paragrafın ardından.
+      var articleBody = document.querySelector('body.item #postBody.post-body, body.item-view #postBody.post-body');
+      var inlineSource = document.getElementById('HVAdInline');
+      var inlineWidget = inlineSource && inlineSource.querySelector('.widget');
+      if (articleBody && inlineWidget && inlineWidget.getAttribute('data-hv-mounted') !== '1') {
+        var headings = articleBody.querySelectorAll('h2');
+        if (headings.length > 5 && !document.getElementById('hv-inline-ad-slot')) {
+          var cursor = headings[3].nextElementSibling;
+          var targetParagraph = null;
+          while (cursor) {
+            if (/^H2$/i.test(cursor.tagName)) break;
+            if (/^P$/i.test(cursor.tagName)) {
+              targetParagraph = cursor;
+              break;
+            }
+            cursor = cursor.nextElementSibling;
+          }
+          if (targetParagraph) {
+            var inlineSlot = document.createElement('div');
+            inlineSlot.id = 'hv-inline-ad-slot';
+            inlineSlot.className = 'hv-inline-ad-slot';
+            targetParagraph.insertAdjacentElement('afterend', inlineSlot);
+            inlineWidget.classList.add('hv-ad-managed-widget');
+            inlineWidget.setAttribute('data-hv-mounted', '1');
+            inlineSlot.appendChild(inlineWidget);
+          }
+        }
+      }
+    })();
+    //]]>
+    
+
+  } });
+  /* BİTİŞ: Makale içi ve çevresindeki reklam widget konumlandırması */
   /* BAŞLANGIÇ: Logo yedek görüntüsü ve yorum kontrolü erişilebilirlik düzeltmeleri (V0 kaynak bloğu #20) */
   modules.push({ id: "image-fallback", run: function () {
 
@@ -2278,6 +2343,79 @@ body.dark .mm-root .mm-ayrac, html.dark .mm-root .mm-ayrac, [data-theme="dark"] 
   } });
   /* BİTİŞ: Logo yedek görüntüsü ve yorum kontrolü erişilebilirlik düzeltmeleri */
 
+
+  /* BAŞLANGIÇ: Özel menü listesinin kategori ve alt menü yapısına dönüştürülmesi */
+  modules.push({ id: "menu-list-builder", run: function () {
+
+//<![CDATA[
+{
+  document.addEventListener("DOMContentLoaded", () => {
+    const style = document.createElement("style");
+    style.textContent = ".ui-menushift li.sub-tab > ul.sub-menu { list-style: none !important; padding-left: 0 !important; display: none !important; } .ui-menushift li.sub-tab.open > ul.sub-menu { display: block !important; }";
+    document.head.appendChild(style);
+
+    const menuList = document.getElementById("xoxx0i-Menulist");
+    if (!menuList) return;
+
+    // GOOGLE SNIPPET KORUMASI: Menü listesini özetlerden gizle
+    menuList.setAttribute('data-nosnippet', 'true');
+
+    const items = menuList.querySelectorAll("ul > li");
+    items.forEach(li => {
+      const anchor = li.querySelector(":scope > a");
+      if (!anchor) return;
+      const text = anchor.textContent.trim();
+      if (text.startsWith("_")) {
+        let prev = li.previousElementSibling;
+        while (prev) {
+          const prevAnchor = prev.querySelector(":scope > a");
+          if (prevAnchor && !prevAnchor.textContent.trim().startsWith("_")) {
+            break;
+          }
+          prev = prev.previousElementSibling;
+        }
+        if (prev) {
+          let subMenu = prev.querySelector(":scope > ul");
+          if (!subMenu) {
+            prev.classList.add("sub-tab");
+            subMenu = document.createElement("ul");
+            subMenu.className = "sub-menu m-sub";
+            prev.appendChild(subMenu);
+          }
+          subMenu.appendChild(li);
+        }
+      }
+    });
+
+    menuList.querySelectorAll("a").forEach(a => {
+      if (a.textContent.includes("_")) {
+        a.textContent = a.textContent.replace(/_/g, "");
+      }
+    });
+
+    // Tema cloneNode yaptıktan sonra çalışsın
+    setTimeout(() => {
+      document.querySelectorAll(".ui-menushift li.sub-tab").forEach(li => {
+        const anchor = li.querySelector(":scope > a");
+        if (!anchor) return;
+
+        anchor.addEventListener("click", e => {
+          const rect = anchor.getBoundingClientRect();
+          const clickX = e.clientX - rect.left;
+          if (clickX > rect.width * 0.75) {
+            e.preventDefault();
+            e.stopPropagation();
+            li.classList.toggle("open");
+          }
+        });
+      });
+    }, 500);
+  });
+}
+//]]>
+
+  } });
+  /* BİTİŞ: Özel menü listesinin kategori ve alt menü yapısına dönüştürülmesi */
   /* BAŞLANGIÇ: Arama panelini açma/kapatma ve klavye etkileşimleri (V0 kaynak bloğu #22) */
   modules.push({ id: "search-panel", run: function () {
 
@@ -2431,6 +2569,53 @@ body.dark .mm-root .mm-ayrac, html.dark .mm-root .mm-ayrac, [data-theme="dark"] 
   } });
   /* BİTİŞ: Mobil çekmece menüsü ve responsive menü liste düzeni */
 
+
+  /* BAŞLANGIÇ: Önceki ve sonraki makale başlıklarının tamamlanması */
+  modules.push({ id: "prev-next-titles", run: function () {
+
+//<![CDATA[
+{
+  document.addEventListener("DOMContentLoaded", () => {
+    const nextLink = document.querySelector('.next-post-link');
+    const prevLink = document.querySelector('.prev-post-link');
+
+    // GOOGLE SNIPPET KORUMASI: Navigasyon linklerini özetlerden gizle
+    if (nextLink) nextLink.setAttribute('data-nosnippet', 'true');
+    if (prevLink) prevLink.setAttribute('data-nosnippet', 'true');
+
+    // DAHA YENİ Makale Adını Çek
+    if (nextLink && nextLink.href) {
+      fetch(nextLink.href)
+        .then(r => r.text())
+        .then(html => {
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const titleEl = doc.querySelector('.post-title, h1.entry-title, h1');
+          if (titleEl) {
+            const p = nextLink.querySelector('p');
+            if (p) p.textContent = titleEl.textContent;
+          }
+        });
+    }
+
+    // DAHA ESKİ Makale Adını Çek
+    if (prevLink && prevLink.href) {
+      fetch(prevLink.href)
+        .then(r => r.text())
+        .then(html => {
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const titleEl = doc.querySelector('.post-title, h1.entry-title, h1');
+          if (titleEl) {
+            const p = prevLink.querySelector('p');
+            if (p) p.textContent = titleEl.textContent;
+          }
+        });
+    }
+  });
+}
+//]]>
+
+  } });
+  /* BİTİŞ: Önceki ve sonraki makale başlıklarının tamamlanması */
   /* BAŞLANGIÇ: Benzer haberler feed kartları ve ortak HVGetLabelFeed kullanımı (V0 kaynak bloğu #26) */
   modules.push({ id: "related-posts", run: function () {
 
@@ -2526,6 +2711,42 @@ body.dark .mm-root .mm-ayrac, html.dark .mm-root .mm-ayrac, [data-theme="dark"] 
   } });
   /* BİTİŞ: Benzer haberler feed kartları ve ortak HVGetLabelFeed kullanımı */
 
+
+  /* BAŞLANGIÇ: Yazar açıklamasındaki sosyal bağlantıların ikon listesine dönüştürülmesi */
+  modules.push({ id: "author-social-links", run: function () {
+
+//<![CDATA[
+{
+  document.addEventListener("DOMContentLoaded", () => {
+    const authorDesc = document.querySelector('.author-description span');
+    const linkList = document.querySelector('ul.description-links');
+    if (authorDesc && linkList) {
+      // GOOGLE SNIPPET KORUMASI: Sosyal medya ikon listesini özetlerden gizle
+      linkList.setAttribute('data-nosnippet', 'true');
+      const links = authorDesc.querySelectorAll('a');
+      links.forEach(link => {
+        const url = link.href;
+        const originalText = link.innerText.toLowerCase().trim();
+        let brand = originalText;
+        if (brand === 'x') brand = 'x-twitter';
+        if (brand === 'bluesky') brand = 'bluesky';
+        const label = originalText.charAt(0).toUpperCase() + originalText.slice(1);
+        const li = document.createElement('li');
+        li.innerHTML = `<a href="${url}" target="_blank" rel="nofollow noopener" aria-label="${label}'da takip et">
+                            <i class="fa-brands fa-${brand}" aria-hidden="true"></i>
+                        </a>`;
+        linkList.appendChild(li);
+        link.style.display = 'none';
+      });
+      linkList.classList.add('show');
+      linkList.style.display = 'block';
+    }
+  });
+}
+//]]>
+
+  } });
+  /* BİTİŞ: Yazar açıklamasındaki sosyal bağlantıların ikon listesine dönüştürülmesi */
   /* BAŞLANGIÇ: Bayrak görselleri hata/yüklenme yedek davranışı (V0 kaynak bloğu #30) */
   modules.push({ id: "flag-fallback", run: function () {
 //
@@ -2619,6 +2840,273 @@ body.dark .mm-root .mm-ayrac, html.dark .mm-root .mm-ayrac, [data-theme="dark"] 
   } });
   /* BİTİŞ: Etiket sayfası açıklama kutusu */
 
+
+  /* BAŞLANGIÇ: Eski Blogger cookiechoices kodunun engellenmesi */
+  modules.push({ id: "legacy-cookie-blocker", run: function () {
+
+//<![CDATA[
+{
+  const init = () => {
+    const blockList = ["cookiechoices.js", "cookieChoices"];
+
+    // window.cookieChoices'e erişimi engelle
+    blockList.forEach(name => {
+      Object.defineProperty(window, name, {
+        configurable: false,
+        enumerable: true,
+        get() { return undefined; },
+        set() { return; }
+      });
+    });
+
+    // DOM'a eklenen scriptleri anlık kontrol et
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+          if (node.tagName === 'SCRIPT') {
+            if (node.src && blockList.some(k => node.src.includes(k))) {
+              node.remove();
+              console.warn('Engellendi:', node.src);
+            }
+          }
+        });
+      });
+    });
+
+    observer.observe(document.head, { childList: true });
+    observer.observe(document.body, { childList: true });
+
+    // Sayfa yüklendiğinde var olan scriptleri ve objeyi temizle
+    document.querySelectorAll('script[src*="cookiechoices"]').forEach(s => s.remove());
+    delete window.cookieChoices;
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+}
+//]]>
+
+  } });
+  /* BİTİŞ: Eski Blogger cookiechoices kodunun engellenmesi */
+
+  /* BAŞLANGIÇ: Makale görsel arşivi ve bayrak galerisi */
+  modules.push({ id: "article-image-gallery", run: function () {
+
+//<![CDATA[
+{
+  const countryNames = {
+    "ad": "Andorra", "ae": "Birleşik Arap Emirlikleri", "af": "Afganistan", "ag": "Antigua ve Barbuda", "ai": "Anguilla", "al": "Arnavutluk", "am": "Ermenistan", "ao": "Angola", "aq": "Antarktika", "ar": "Arjantin", "as": "Amerikan Samoası", "at": "Avusturya", "au": "Avustralya", "aw": "Aruba", "ax": "Åland Adaları", "az": "Azerbaycan", "ba": "Bosna-Hersek", "bb": "Barbados", "bd": "Bangladeş", "be": "Belçika", "bf": "Burkina Faso", "bg": "Bulgaristan", "bh": "Bahreyn", "bi": "Burundi", "bj": "Benin", "bl": "Saint Barthelemy", "bm": "Bermuda", "bn": "Brunei", "bo": "Bolivya", "bq": "Karayip Hollandası", "br": "Brezilya", "bs": "Bahamalar", "bt": "Butan", "bv": "Bouvet Adası", "bw": "Botsvana", "by": "Belarus", "bz": "Belize", "ca": "Kanada", "cc": "Cocos Adaları", "cd": "Kongo Demokratik Cumhuriyeti", "cf": "Orta Afrika Cumhuriyeti", "cg": "Kongo Cumhuriyeti", "ch": "İsviçre", "ci": "Fildişi Sahili", "ck": "Cook Adaları", "cl": "Şili", "cm": "Kamerun", "cn": "Çin", "co": "Kolombiya", "cr": "Kosta Rika", "cu": "Küba", "cv": "Yeşil Burun Adaları", "cw": "Curaçao", "cx": "Christmas Adası", "cy": "Kıbrıs", "cz": "Çekya", "de": "Almanya", "dj": "Cibuti", "dk": "Danimarka", "dm": "Dominika", "do": "Dominik Cumhuriyeti", "dz": "Cezayir", "ec": "Ekvador", "ee": "Estonya", "eg": "Mısır", "eh": "Batı Sahra", "er": "Eritre", "es": "İspanya", "et": "Etiyopya", "fi": "Finlandiya", "fj": "Fiji", "fk": "Falkland Adaları", "fm": "Mikronezya", "fo": "Faroe Adaları", "fr": "Fransa", "ga": "Gabon", "gb": "Birleşik Krallık", "gd": "Grenada", "ge": "Gürcistan", "gf": "Fransız Guyanası", "gg": "Guernsey", "gh": "Gana", "gi": "Cebelitarık", "gl": "Grönland", "gm": "Gambiya", "gn": "Gine", "gp": "Guadeloupe", "gq": "Ekvator Ginesi", "gr": "Yunanistan", "gs": "Güney Georgia ve Güney Sandwich Adaları", "gt": "Guatemala", "gu": "Guam", "gw": "Gine-Bissau", "gy": "Guyana", "hk": "Hong Kong", "hm": "Heard Adası ve McDonald Adaları", "hn": "Honduras", "hr": "Hırvatistan", "ht": "Haiti", "hu": "Macaristan", "id": "Endonezya", "ie": "İrlanda", "il": "İsrail", "im": "Man Adası", "in": "Hindistan", "io": "İngiliz Hint Okyanusu Toprakları", "iq": "Irak", "ir": "İran", "is": "İzlanda", "it": "İtalya", "je": "Jersey", "jm": "Jamaika", "jo": "Ürdün", "jp": "Japonya", "ke": "Kenya", "kg": "Kırgızistan", "kh": "Kamboçya", "ki": "Kiribati", "km": "Komorlar", "kn": "Saint Kitts ve Nevis", "kp": "Kuzey Kore", "kr": "Güney Kore", "kw": "Kuveyt", "ky": "Cayman Adaları", "kz": "Kazakistan", "la": "Laos", "lb": "Lübnan", "lc": "Saint Lucia", "li": "Lihtenştayn", "lk": "Sri Lanka", "lr": "Liberya", "ls": "Lesotho", "lt": "Litvanya", "lu": "Lüksemburg", "lv": "Letonya", "ly": "Libya", "ma": "Fas", "mc": "Monako", "md": "Moldova", "me": "Karadağ", "mf": "Saint Martin", "mg": "Madagaskar", "mh": "Marshall Adaları", "mk": "Kuzey Makedonya", "ml": "Mali", "mm": "Myanmar", "mn": "Moğolistan", "mo": "Makao", "mp": "Kuzey Mariana Adaları", "mq": "Martinik", "mr": "Moritanya", "ms": "Montserrat", "mt": "Malta", "mu": "Mauritius", "mv": "Maldivler", "mw": "Malavi", "mx": "Meksika", "my": "Malezya", "mz": "Mozambik", "na": "Namibya", "nc": "Yeni Kaledonya", "ne": "Nijer", "nf": "Norfolk Adası", "ng": "Nijerya", "ni": "Nikaragua", "nl": "Hollanda", "no": "Norveç", "np": "Nepal", "nr": "Nauru", "nu": "Niue", "nz": "Yeni Zelanda", "om": "Umman", "pa": "Panama", "pe": "Peru", "pf": "Fransız Polinezyası", "pg": "Papua Yeni Gine", "ph": "Filipinler", "pk": "Pakistan", "pl": "Polonya", "pm": "Saint Pierre ve Miquelon", "pn": "Pitcairn Adaları", "pr": "Porto Riko", "ps": "Filistin", "pt": "Portekiz", "pw": "Palau", "py": "Paraguay", "qa": "Katar", "re": "Réunion", "ro": "Romanya", "rs": "Sırbistan", "ru": "Rusya", "rw": "Ruanda", "sa": "Suudi Arabistan", "sb": "Solomon Adaları", "sc": "Seyşeller", "sd": "Sudan", "se": "İsveç", "sg": "Singapur", "sh": "Saint Helena", "si": "Slovenya", "sj": "Svalbard ve Jan Mayen", "sk": "Slovakya", "sl": "Sierra Leone", "sm": "San Marino", "sn": "Senegal", "so": "Somali", "sr": "Surinam", "ss": "Güney Sudan", "st": "Sao Tome ve Principe", "sv": "El Salvador", "sx": "Sint Maarten", "sy": "Suriye", "sz": "Esvatini", "tc": "Turks ve Caicos Adaları", "td": "Çad", "tf": "Fransız Güney ve Antarktika Toprakları", "tg": "Togo", "th": "Tayland", "tj": "Tacikistan", "tk": "Tokelau", "tl": "Doğu Timor", "tm": "Türkmenistan", "tn": "Tunus", "to": "Tonga", "tr": "Türkiye", "tt": "Trinidad ve Tobago", "tv": "Tuvalu", "tw": "Tayvan", "tz": "Tanzanya", "ua": "Ukrayna", "ug": "Uganda", "um": "Amerika Birleşik Devletleri Küçük Dış Adaları", "us": "Amerika Birleşik Devletleri", "uy": "Uruguay", "uz": "Özbekistan", "va": "Vatikan", "vc": "Saint Vincent ve Grenadinler", "ve": "Venezuela", "vg": "Britanya Virjin Adaları", "vi": "ABD Virjin Adaları", "vn": "Vietnam", "vu": "Vanuatu", "wf": "Wallis ve Futuna", "ws": "Samoa", "ye": "Yemen", "yt": "Mayotte", "za": "Güney Afrika", "zm": "Zambiya", "zw": "Zimbabve", "kktc": "Kuzey Kıbrıs Türk Cumhuriyeti", "scotland": "İskoçya", "wales": "Galler"
+  };
+
+  const state = {
+    aiItems: [],
+    bayrakItems: [],
+    bayrakUrls: new Set(),
+    totalArticles: 0,
+    categoryRaw: "",
+    categoryDisplay: ""
+  };
+
+  const injectStyles = () => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .gorsel-container { font-family: sans-serif; margin: 20px 0; }
+      .gorsel-section-title { 
+        background: #f8f9fa; padding: 12px 15px; border-radius: 12px; 
+        margin: 30px 0 15px; border-left: 5px solid #6f42c1;
+        font-weight: bold; font-size: 1.1rem; color: #333;
+      }
+      .gorsel-section-title.bayrak-title { border-left-color: #3498db; }
+      .gorsel-grid-new { 
+        display: grid; grid-template-columns: repeat(4, 1fr); 
+        gap: 15px; margin-bottom: 20px; width: 100%; box-sizing: border-box;
+      }
+      .gorsel-card {
+        background: #fff; border: 1px solid #ddd; border-radius: 15px;
+        padding: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        display: flex; flex-direction: column; min-width: 0;
+      }
+      .gorsel-card img {
+        width: 100%; aspect-ratio: 16/9; object-fit: cover;
+        border-radius: 10px; margin-bottom: 10px; display: block;
+      }
+      .gorsel-info { font-size: 11px; color: #444; line-height: 1.5; text-align: left; word-wrap: break-word; }
+      .gorsel-info strong { color: #000; font-size: 12px; display: block; margin-bottom: 4px; white-space: normal; }
+      .gorsel-info b { color: #333; }
+      .gorsel-info a { color: #0073e6; font-weight: 600; text-decoration: none; }
+      .toplam-kutu-new {
+        background: #f4f6fb; color: #333; padding: 15px; border-left: 5px solid #6f42c1;
+        border-radius: 12px; margin-bottom: 20px; font-weight: 600;
+      }
+      body.dark .gorsel-card { background: #1a1c27; border-color: #333; }
+      body.dark .gorsel-info { color: #ccc; }
+      body.dark .gorsel-info strong { color: #fff; }
+      body.dark .gorsel-info b { color: #eee; }
+      body.dark .gorsel-section-title { background: #111; color: #eee; }
+      body.dark .toplam-kutu-new { background: #1a1c27; color: #ccc; }
+      @media (max-width: 1024px) { .gorsel-grid-new { grid-template-columns: repeat(3, 1fr); } }
+      @media (max-width: 768px) { .gorsel-grid-new { grid-template-columns: repeat(2, 1fr); } }
+      @media (max-width: 480px) { .gorsel-grid-new { grid-template-columns: 1fr; } }
+    `;
+    document.head.appendChild(style);
+  };
+
+  const formatDateTR = (d) => {
+    if (!d) return "Belirtilmedi";
+    const months = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+    const x = new Date(d);
+    return isNaN(x) ? "Belirtilmedi" : `${x.getDate()} ${months[x.getMonth()]} ${x.getFullYear()}`;
+  };
+
+  const optimizeImageUrl = (url) => url || ''; // Kaynak makaledeki gerçek URL korunur; yeni boyut varyantı üretilmez.
+
+  const renderAll = () => {
+    const container = document.getElementById("makale-gorseller");
+    if (!container) return;
+    container.setAttribute("data-nosnippet", "true");
+    const sortedBayraks = [...state.bayrakItems].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+    let html = `<div class="toplam-kutu-new">🎨 ${state.categoryDisplay.replace(/[_#]/g, '')} Arşivi | Makale: ${state.totalArticles} | AI: ${state.aiItems.length} | Bayrak: ${state.bayrakItems.length}</div>`;
+    if (state.aiItems.length > 0) {
+      html += `<div class="gorsel-section-title">🤖 Yapay Zeka (AI) Görselleri</div><div class="gorsel-grid-new">${state.aiItems.map(i => i.content).join('')}</div>`;
+    }
+    if (sortedBayraks.length > 0) {
+      html += `<div class="gorsel-section-title bayrak-title">🚩 Resmi Bayrak Görselleri (A-Z)</div><div class="gorsel-grid-new">${sortedBayraks.map(i => i.content).join('')}</div>`;
+    }
+    container.innerHTML = html;
+  };
+
+  const fetchWithRetry = async (url, retries = 3, delay = 1000) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) return res;
+        throw new Error(`HTTP ${res.status}`);
+      } catch (err) {
+        if (i < retries - 1) {
+          await new Promise(r => setTimeout(r, delay * (i + 1)));
+        } else {
+          throw err;
+        }
+      }
+    }
+  };
+
+  const processArticle = async (e) => {
+    const linkObj = e.link.find(l => l.rel === "alternate");
+    if (!linkObj) return;
+    const link = linkObj.href;
+    const articleTitle = e.title.$t;
+    const publishedRaw = e.published ? e.published.$t : "";
+    const publishedDate = publishedRaw ? publishedRaw.substring(0, 10) : "";
+
+    try {
+      const res = await fetchWithRetry(link);
+      const text = await res.text();
+      const doc = new DOMParser().parseFromString(text, 'text/html');
+
+      const headerImg = doc.querySelector(".news-header figure img:not(.bayrak)");
+      if (headerImg) {
+        if (!headerImg.classList.contains("ai-gorsel")) {
+          headerImg.classList.add("ai-gorsel");
+        }
+        if (!headerImg.getAttribute("data-created") && publishedDate) {
+          headerImg.setAttribute("data-created", publishedDate);
+        }
+      }
+
+      const imgs = doc.querySelectorAll("img.ai-gorsel, img.bayrak");
+      if (imgs.length > 0) state.totalArticles++;
+
+      imgs.forEach(img => {
+        let src = img.getAttribute('src') || img.getAttribute('data-src');
+        if (!src) return;
+        let cleanSrc = src.split(/[?#]/)[0];
+        let date = img.getAttribute("data-created") ? formatDateTR(img.getAttribute("data-created")) : "Belirtilmedi";
+        let isBayrak = img.classList.contains("bayrak");
+
+        if (isBayrak) {
+          if (state.bayrakUrls.has(cleanSrc)) return;
+          state.bayrakUrls.add(cleanSrc);
+          let code = cleanSrc.split('/').pop().replace('.svg', '').toLowerCase();
+          let name = countryNames[code] ? countryNames[code] + " Bayrağı" : code.toUpperCase() + " Bayrağı";
+          state.bayrakItems.push({
+            name: name,
+            content: `<div class="gorsel-card">
+              <a href="${link}" target="_blank"><img src="${optimizeImageUrl(src)}" loading="lazy"></a>
+              <div class="gorsel-info">
+                <strong>${name}</strong>
+                <b>Yükleme Tarihi:</b> ${date}<br>
+                <b>Lisans:</b> Kamu Malı
+              </div>
+            </div>`
+          });
+        } else {
+          state.aiItems.push({
+            content: `<div class="gorsel-card">
+              <a href="${link}" target="_blank"><img src="${optimizeImageUrl(src)}" loading="lazy"></a>
+              <div class="gorsel-info">
+                <strong>${articleTitle}</strong>
+                <b>Görsel Telif Tarihi:</b> © ${date}<br>
+                <b>Lisans:</b> <a href="https://www.haberlerver.com/p/lisans.html" target="_blank">Haberlerver.com</a><br>
+                AI (Flow) ürünüdür.
+              </div>
+            </div>`
+          });
+        }
+      });
+      renderAll();
+    } catch (err) {
+      console.warn("Fetch hatası, makale atlandı:", link, err.message);
+    }
+  };
+
+  const init = async () => {
+    const container = document.getElementById("makale-gorseller");
+    if (!container) return;
+    injectStyles();
+    state.categoryRaw = container.getAttribute("data-kategori") || "";
+    state.categoryDisplay = state.categoryRaw;
+    const feedUrl = `https://www.haberlerver.com/feeds/posts/default/-/${encodeURIComponent(state.categoryRaw)}?alt=json&max-results=150`;
+
+    try {
+      const fetchFeed = async (url) => {
+        const r = await fetchWithRetry(url);
+        return r ? await r.json() : { feed: { entry: [] } };
+      };
+
+      const firstPage = await fetchFeed(`${feedUrl}&start-index=1`);
+      let allEntries = (firstPage.feed && firstPage.feed.entry) ? firstPage.feed.entry.slice() : [];
+      // İkinci 150 kayıtlık isteği yalnızca ilk sayfa doluysa yap; küçük arşivlerde ek istek yok.
+      if (allEntries.length >= 150) {
+        const secondPage = await fetchFeed(`${feedUrl}&start-index=151`);
+        allEntries = allEntries.concat((secondPage.feed && secondPage.feed.entry) ? secondPage.feed.entry : []);
+      }
+
+      const poolSize = 5;
+      for (let i = 0; i < allEntries.length; i += poolSize) {
+        const chunk = allEntries.slice(i, i + poolSize);
+        await Promise.all(chunk.map(e => processArticle(e)));
+      }
+
+      renderAll();
+    } catch (err) {
+      container.innerHTML = "Veri yüklenirken hata oluştu.";
+    }
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+}
+//]]>
+
+  } });
+  /* BİTİŞ: Makale görsel arşivi ve bayrak galerisi */
   /* BAŞLANGIÇ: Paylaşım, takip ve Google takip rozeti bileşenleri (V0 kaynak bloğu #38) */
   modules.push({ id: "share-follow", run: function () {
 
@@ -3763,6 +4251,343 @@ if (!window.__aiPaylasimBariBaslatildi) {
   } });
   /* BİTİŞ: Paylaşım, takip ve Google takip rozeti bileşenleri */
 
+
+  /* BAŞLANGIÇ: Yapay zekâ görsel kullanım bilgilendirmesi ve stil oluşturma */
+  modules.push({ id: "ai-usage-notice", run: function () {
+
+//<![CDATA[
+
+(function () {
+
+    'use strict';
+
+
+    /* =====================================================
+       DARK MODE CSS
+    ===================================================== */
+
+    function stilEkle() {
+
+        if (
+            document.getElementById(
+                'ai-yz-bildirim-style'
+            )
+        ) {
+            return;
+        }
+
+
+        const style =
+            document.createElement(
+                'style'
+            );
+
+
+        style.id =
+            'ai-yz-bildirim-style';
+
+
+        style.textContent = `
+
+            /* =================================================
+               NORMAL MOD
+            ================================================= */
+
+            .ai-yz-kullanim-notu {
+
+                text-align: center !important;
+
+                font-size: 12px !important;
+
+                color: #595959 !important;
+
+                margin:
+                    20px
+                    0
+                    8px
+                    0 !important;
+
+                line-height: 1.8 !important;
+
+                padding:
+                    10px
+                    16px !important;
+
+                border-top:
+                    1px solid #eee !important;
+
+                border-bottom:
+                    1px solid #eee !important;
+
+                box-sizing: border-box !important;
+
+            }
+
+
+            .ai-yz-kullanim-notu strong {
+
+                color: inherit !important;
+
+                font-weight: 700 !important;
+
+            }
+
+
+            .ai-yz-kullanim-notu a {
+
+                color: #0066cc !important;
+
+                text-decoration:
+                    underline !important;
+
+                font-weight: 600 !important;
+
+                cursor: pointer !important;
+
+            }
+
+
+            /* =================================================
+               DARK MODE
+
+               Senin sistemin:
+               body.dark
+            ================================================= */
+
+            body.dark
+            .ai-yz-kullanim-notu {
+
+                color: #cfcfcf !important;
+
+                border-top-color:
+                    #3a3a3a !important;
+
+                border-bottom-color:
+                    #3a3a3a !important;
+
+                background:
+                    transparent !important;
+
+            }
+
+
+            body.dark
+            .ai-yz-kullanim-notu strong {
+
+                color: #f1f1f1 !important;
+
+            }
+
+
+            body.dark
+            .ai-yz-kullanim-notu a {
+
+                color: #66b3ff !important;
+
+                text-decoration:
+                    underline !important;
+
+            }
+
+
+            body.dark
+            .ai-yz-kullanim-notu a:hover {
+
+                color: #8cc8ff !important;
+
+            }
+
+
+            /* =================================================
+               LIGHT MODE AÇIKÇA
+            ================================================= */
+
+            body:not(.dark)
+            .ai-yz-kullanim-notu {
+
+                color: #595959 !important;
+
+                border-top-color:
+                    #eee !important;
+
+                border-bottom-color:
+                    #eee !important;
+
+            }
+
+
+            body:not(.dark)
+            .ai-yz-kullanim-notu a {
+
+                color: #0066cc !important;
+
+            }
+
+        `;
+
+
+        document.head.appendChild(
+            style
+        );
+
+    }
+
+
+    /* =====================================================
+       YAPAY ZEKA KULLANIM NOTU
+    ===================================================== */
+
+    function notuEkle() {
+
+        const target =
+            document.getElementById(
+                'follow-all-here'
+            );
+
+
+        /*
+         * Hedef yoksa işlem yapma.
+         */
+
+        if (!target) {
+            return;
+        }
+
+
+        /*
+         * Daha önce eklenmişse tekrar ekleme.
+         */
+
+        if (
+            document.querySelector(
+                '.ai-yz-kullanim-notu'
+            )
+        ) {
+            return;
+        }
+
+
+        /* =================================================
+           NOT
+        ================================================= */
+
+        const not =
+            document.createElement(
+                'div'
+            );
+
+
+        not.className =
+            'ai-yz-kullanim-notu';
+
+
+        not.setAttribute(
+            'data-nosnippet',
+            'true'
+        );
+
+
+        /*
+         * Burada artık renkleri inline style ile
+         * vermiyoruz. CSS dark mode'u yönetecek.
+         */
+
+        not.innerHTML = `
+
+            🤖
+            <strong>
+                Yapay Zeka Kullanım Bildirimi:
+            </strong>
+
+            Bu makale yapay zeka destekli araçlarla
+            üretilmiştir.
+
+            İçerik
+            <a
+                href="https://www.haberlerver.com"
+                target="_blank">
+                Haberlerver.com
+            </a>
+            sorumluluğu altında yayımlanmaktadır.
+
+            Telif hakkı ve lisans bilgisi için
+            <a
+                href="/p/lisans.html"
+                target="_blank"
+                rel="nofollow">
+                Lisans Sayfamızı
+            </a>
+            ziyaret edebilirsiniz.
+
+            İçerikte hatalı, eksik veya güncel olmadığını
+            düşündüğünüz bir bilgi varsa, lütfen
+            <a
+                href="/p/iletisim.html"
+                target="_blank"
+                rel="nofollow">
+                İletişim
+            </a>
+            sayfamız üzerinden bizimle iletişime geçin;
+            en kısa sürede gerekli kontrolleri sağlayıp
+            güncelleyelim.
+
+        `;
+
+
+        /*
+         * follow-all-here'ın hemen önüne yerleştir.
+         */
+
+        target.parentNode.insertBefore(
+            not,
+            target
+        );
+
+    }
+
+
+    /* =====================================================
+       BAŞLAT
+    ===================================================== */
+
+    function init() {
+
+        stilEkle();
+
+        notuEkle();
+
+    }
+
+
+    /* =====================================================
+       DOM HAZIR
+    ===================================================== */
+
+    if (
+        document.readyState ===
+        'loading'
+    ) {
+
+        document.addEventListener(
+            'DOMContentLoaded',
+            init,
+            {
+                once: true
+            }
+        );
+
+    } else {
+
+        init();
+
+    }
+
+})();
+
+//]]>
+
+  } });
+  /* BİTİŞ: Yapay zekâ görsel kullanım bilgilendirmesi ve stil oluşturma */
   /* BAŞLANGIÇ: Tekil makale içindekiler tablosu (V0 kaynak bloğu #40) */
   modules.push({ id: "article-toc", run: function () {
 
@@ -6419,6 +7244,3278 @@ if (!window.__aiPaylasimBariBaslatildi) {
   } });
   /* BİTİŞ: AI görsel/video sliderı */
 
+
+  /* BAŞLANGIÇ: KVKK / çerez tercihleri ve izin tabanlı ölçüm yönetimi */
+  modules.push({ id: "consent-manager", run: function () {
+
+  //<![CDATA[
+  (function () {
+    'use strict';
+
+    /*
+      Haberlerver.com
+      KVKK / GİZLİLİK TERCİH YÖNETİMİ
+      GTM MERKEZLİ
+
+      MANTIK:
+
+      1) Kullanıcı hiçbir seçim yapmadıysa:
+         - GTM yüklenmez
+         - GA4 yüklenmez
+         - Yandex Metrica yüklenmez
+         - Microsoft Clarity yüklenmez
+
+      2) GTM ayrı bir onay alanıdır.
+
+      3) GTM kapalıysa:
+         - GA4 kapalı
+         - Yandex kapalı
+         - Clarity kapalı
+         - Alt seçenekler disabled/sönük
+
+      4) GTM açık + yalnızca bir ölçüm açık olabilir.
+
+      5) GTM açıkken alt seçimlerden biri değiştirilirse
+         ve GTM daha önce yüklenmişse sayfa yenilenir.
+         Böylece yeni tercih temiz sayfa bağlamında uygulanır.
+
+      6) GPC aktifse isteğe bağlı ölçüm ve GTM kapalı tutulur.
+
+      7) GA4 / Yandex / Clarity doğrudan bu kod tarafından yüklenmez.
+         Yalnızca GTM izin verildiğinde GTM üzerinden yüklenir.
+    */
+
+    if (window.__HV_COOKIE_MANAGER_INITIALIZED__) {
+      return;
+    }
+
+    window.__HV_COOKIE_MANAGER_INITIALIZED__ = true;
+
+    /* =========================================================
+       DATA LAYER
+       ========================================================= */
+
+    window.dataLayer = window.dataLayer || [];
+
+    /*
+      gtag stub.
+      Google scripti burada yüklenmez.
+      Komutlar yalnızca dataLayer kuyruğuna yazılır.
+    */
+    window.gtag = window.gtag || function () {
+      window.dataLayer.push(arguments);
+    };
+
+    /*
+      Google Consent Mode V2 başlangıç durumu.
+      Ölçüm / reklam tarafı varsayılan olarak reddedilir.
+    */
+    window.gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'analytics_storage': 'denied',
+      'ad_user_data': 'denied',
+      'ad_personalization': 'denied',
+      'functionality_storage': 'granted',
+      'security_storage': 'granted',
+      'personalization_storage': 'denied'
+    });
+
+    /*
+      Reklam verisi redaksiyonu.
+    */
+    window.gtag('set', 'ads_data_redaction', true);
+
+    /* =========================================================
+       CLARITY CONSENT V2 QUEUE
+       ========================================================= */
+
+    /*
+      Clarity scripti henüz yüklenmemiş olsa bile
+      consent çağrılarının kuyruğa alınmasını sağlar.
+    */
+    window.clarity = window.clarity || function () {
+      (window.clarity.q = window.clarity.q || []).push(arguments);
+    };
+
+    /*
+      Başlangıçta Clarity izni yok.
+    */
+    window.clarity('consentv2', {
+      ad_Storage: 'denied',
+      analytics_Storage: 'denied'
+    });
+
+    /* =========================================================
+       SABİT KİMLİKLER
+       ========================================================= */
+
+    window.__cookieIDS = {
+      gtm: 'GTM-WJHCZK5B',
+      blogger: '5804309692235712171'
+    };
+
+    /* =========================================================
+       ANA KOD
+       ========================================================= */
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+      /* =======================================================
+         AYARLAR
+         ======================================================= */
+
+      const KEY = 'cookiePrefs_v2';
+
+      /*
+        Politika / consent sürümü.
+        Değiştiğinde mevcut tercih geçersiz olur.
+      */
+      const POLICY_VERSION = '2.0';
+
+      /*
+        Tercih geçerlilik süresi.
+      */
+      const CONSENT_MAX_AGE_DAYS = 180;
+
+      const IDS = window.__cookieIDS;
+
+      const prefersReducedMotion =
+        window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      /* =======================================================
+         STYLE
+         ======================================================= */
+
+      const style = document.createElement('style');
+
+      style.id = 'hv-cookie-manager-style';
+
+      style.textContent = `
+        #cookie-banner,
+        #cookie-drawer,
+        #cookie-icon {
+          box-sizing: border-box;
+        }
+
+        #cookie-banner {
+          position: fixed;
+          bottom: 16px;
+          left: 50%;
+          width: calc(100% - 32px);
+          max-width: 640px;
+          background: rgba(255,255,255,0.97);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          border: 1px solid #e2e8f0;
+          border-radius: 20px;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+          padding: 22px;
+          font-family:
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            sans-serif;
+          z-index: 99990;
+          display: none;
+          color: #0f172a;
+          opacity: 0;
+          transform: translateX(-50%) translateY(12px);
+          transition:
+            opacity ${prefersReducedMotion ? '0s' : '.35s'} ease,
+            transform ${prefersReducedMotion ? '0s' : '.35s'} ease;
+        }
+
+        #cookie-banner.visible {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+
+        #cookie-banner h4 {
+          margin: 0 0 9px 0;
+          font-size: 16px;
+          line-height: 1.35;
+          font-weight: 700;
+          text-align: center;
+        }
+
+        #cookie-banner p {
+          font-size: 13.5px;
+          line-height: 1.65;
+          margin: 0 0 18px 0;
+          text-align: center;
+          color: #334155;
+        }
+
+        #cookie-banner p a,
+        #cookie-banner p button.link-button {
+          color: #0a4d92;
+          font-weight: 600;
+          text-decoration: none;
+          border-bottom: 1px dotted #0a4d92;
+        }
+
+        #cookie-banner p button.link-button {
+          background: none;
+          border-top: 0;
+          border-left: 0;
+          border-right: 0;
+          padding: 0;
+          margin: 0;
+          cursor: pointer;
+          font: inherit;
+        }
+
+        .cookie-brand {
+          text-align: center;
+          margin-bottom: 10px;
+        }
+
+        .cookie-brand-name {
+          display: inline-block;
+          font-size: 18px;
+          line-height: 1.2;
+          font-weight: 800;
+          letter-spacing: -0.3px;
+          color: #0a4d92;
+        }
+
+        .cookie-actions {
+          display: flex;
+          gap: 10px;
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+
+        .cookie-actions button {
+          padding: 12px 22px;
+          border-radius: 30px;
+          border: none;
+          font-weight: 600;
+          cursor: pointer;
+          font-size: 14px;
+          transition:
+            background .2s ease,
+            transform .2s ease,
+            box-shadow .2s ease;
+          font-family: inherit;
+        }
+
+        .cookie-actions button:hover {
+          transform: translateY(-1px);
+        }
+
+        .cookie-actions button:disabled {
+          cursor: not-allowed;
+          opacity: .55;
+          transform: none;
+        }
+
+        #acceptCookies {
+          background: #15803d;
+          color: #fff;
+          box-shadow: 0 4px 10px rgba(21,128,61,0.30);
+        }
+
+        #acceptCookies:hover {
+          background: #166534;
+        }
+
+        #rejectCookies {
+          background: #f1f5f9;
+          color: #334155;
+          border: 1px solid #e2e8f0;
+        }
+
+        #rejectCookies:hover {
+          background: #e2e8f0;
+        }
+
+        #manageCookies {
+          background: #eff6ff;
+          color: #1e40af;
+          border: 1px solid #bfdbfe;
+        }
+
+        #manageCookies:hover {
+          background: #dbeafe;
+        }
+
+        #cookie-banner button:focus-visible,
+        #cookie-icon:focus-visible,
+        .toggle:focus-visible,
+        .drawer-close:focus-visible,
+        .btn-primary:focus-visible,
+        .btn-secondary:focus-visible,
+        button.link-button:focus-visible {
+          outline: 2px solid #0b72ef;
+          outline-offset: 3px;
+        }
+
+        #cookie-icon {
+          position: fixed;
+          bottom: 16px;
+          left: 16px;
+          width: 48px;
+          height: 48px;
+          background: #15803d;
+          border: none;
+          padding: 0;
+          border-radius: 50%;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+          cursor: pointer;
+          z-index: 99999;
+          display: none;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transform: scale(.96);
+          transition:
+            opacity ${prefersReducedMotion ? '0s' : '.3s'} ease,
+            transform ${prefersReducedMotion ? '0s' : '.2s'} ease;
+        }
+
+        #cookie-icon.visible {
+          opacity: 1;
+          transform: scale(1);
+        }
+
+        #cookie-icon:hover {
+          transform: scale(1.05);
+        }
+
+        #cookie-icon svg {
+          width: 26px;
+          height: 26px;
+          display: block;
+        }
+
+        #cookie-drawer {
+          position: fixed;
+          top: 0;
+          left: 0;
+          height: 100%;
+          width: 380px;
+          max-width: 92%;
+          background: #ffffff;
+          box-shadow: 8px 0 30px rgba(0,0,0,0.08);
+          transform: translateX(-110%);
+          transition:
+            transform ${prefersReducedMotion ? '0s' : '.3s'}
+            cubic-bezier(0.2,0.9,0.2,1);
+          z-index: 100000;
+          padding: 20px 18px;
+          font-family:
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            sans-serif;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          color: #0f172a;
+        }
+
+        #cookie-drawer[hidden] {
+          display: none !important;
+        }
+
+        #cookie-drawer.open {
+          transform: translateX(0);
+        }
+
+        .drawer-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+
+        .drawer-header h3 {
+          margin: 0;
+          font-size: 18px;
+          line-height: 1.3;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .drawer-close {
+          background: transparent;
+          border: none;
+          font-size: 26px;
+          cursor: pointer;
+          color: #64748b;
+          padding: 0 4px;
+          line-height: 1;
+        }
+
+        .drawer-close:hover {
+          color: #0f172a;
+        }
+
+        .cookie-brand.drawer-brand {
+          margin: 2px 0 8px 0;
+        }
+
+        .drawer-description {
+          text-align: center;
+          margin: 0 0 14px 0;
+          color: #475569;
+          font-size: 12.5px;
+          line-height: 1.5;
+        }
+
+        .gpc-notice {
+          display: none;
+          margin: 0 0 14px 0;
+          padding: 11px 12px;
+          border-radius: 12px;
+          background: #fef3c7;
+          border: 1px solid #fde68a;
+          color: #78350f;
+          font-size: 12.5px;
+          line-height: 1.5;
+        }
+
+        .gpc-notice.visible {
+          display: block;
+        }
+
+        /*
+          GTM ana izin alanı.
+        */
+
+        .gtm-item {
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+          padding: 14px;
+          border-radius: 14px;
+          margin-bottom: 12px;
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+        }
+
+        .gtm-item .meta {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .gtm-item .meta b {
+          display: block;
+          font-size: 14px;
+          color: #1e3a8a;
+          margin-bottom: 6px;
+        }
+
+        .gtm-item .meta small {
+          color: #475569;
+          line-height: 1.55;
+          font-size: 12.5px;
+        }
+
+        /*
+          GTM kapalıyken alt ölçüm kategorileri görsel olarak
+          pasif hale getirilir.
+        */
+
+        .measurement-group-disabled {
+          opacity: .48;
+        }
+
+        .measurement-group-disabled .cookie-item {
+          cursor: not-allowed;
+        }
+
+        .cookie-item {
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+          padding: 14px;
+          border-radius: 14px;
+          margin-bottom: 12px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          transition:
+            opacity .2s ease,
+            background .2s ease,
+            border-color .2s ease;
+        }
+
+        .cookie-item .meta {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .cookie-item .meta b {
+          display: block;
+          font-size: 14px;
+          color: #0f172a;
+          margin-bottom: 6px;
+        }
+
+        .cookie-item .meta small {
+          color: #475569;
+          line-height: 1.55;
+          font-size: 12.5px;
+        }
+
+        .toggle {
+          --w: 44px;
+          --h: 24px;
+          --dot: 18px;
+
+          width: var(--w);
+          height: var(--h);
+          border-radius: 999px;
+          background: #cbd5e1;
+          position: relative;
+          cursor: pointer;
+          flex-shrink: 0;
+          transition:
+            background .2s ease,
+            opacity .2s ease;
+          display: inline-block;
+          border: none;
+          padding: 0;
+          -webkit-appearance: none;
+          appearance: none;
+        }
+
+        .toggle .dot {
+          width: var(--dot);
+          height: var(--dot);
+          background: #fff;
+          border-radius: 50%;
+          position: absolute;
+          top: 3px;
+          left: 3px;
+          transition:
+            transform .2s
+            cubic-bezier(0.2,0.9,0.2,1);
+          box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+          display: block;
+        }
+
+        .toggle.active {
+          background: #0b72ef;
+        }
+
+        .toggle.active .dot {
+          transform: translateX(20px);
+        }
+
+        .toggle:disabled {
+          cursor: not-allowed;
+          opacity: .55;
+        }
+
+        /*
+          GTM kapalıyken çocuk toggle'lar özellikle sönük.
+        */
+
+        .toggle.child-disabled {
+          opacity: .45;
+          cursor: not-allowed;
+        }
+
+        .drawer-actions {
+          margin-top: auto;
+          padding: 16px 0 0 0;
+          background: #fff;
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          border-top: 1px solid #e5e7eb;
+          position: sticky;
+          bottom: 0;
+        }
+
+        .btn-primary {
+          background: #15803d;
+          color: #fff;
+          border: none;
+          padding: 14px 20px;
+          border-radius: 30px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+          flex: 1;
+          white-space: nowrap;
+          font-family: inherit;
+        }
+
+        .btn-primary:hover {
+          background: #166534;
+        }
+
+        .btn-primary:disabled {
+          cursor: not-allowed;
+          opacity: .55;
+        }
+
+        .btn-secondary {
+          background: #f1f5f9;
+          color: #1e40af;
+          border: none;
+          padding: 12px 16px;
+          border-radius: 30px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 13px;
+          white-space: nowrap;
+          font-family: inherit;
+        }
+
+        .btn-secondary:hover {
+          background: #e2e8f0;
+        }
+
+        .btn-secondary:disabled {
+          cursor: not-allowed;
+          opacity: .55;
+        }
+
+        .mandatory-item {
+          background: #f8fafc;
+        }
+
+        @media (max-width: 480px) {
+
+          #cookie-banner {
+            padding: 18px;
+            bottom: 10px;
+            width: calc(100% - 20px);
+          }
+
+          .cookie-actions {
+            flex-direction: column;
+          }
+
+          .cookie-actions button {
+            width: 100%;
+          }
+
+          #cookie-icon {
+            left: 12px;
+            bottom: 12px;
+          }
+
+          #cookie-drawer {
+            width: 100%;
+            max-width: 100%;
+            border-radius: 0;
+            padding: 16px 12px;
+          }
+
+          .drawer-actions {
+            flex-direction: column;
+          }
+
+          .btn-primary,
+          .btn-secondary {
+            width: 100%;
+            text-align: center;
+            padding: 14px 16px;
+          }
+        }
+
+        body.dark #cookie-banner {
+          background: rgba(30,41,59,0.97);
+          border-color: #334155;
+          color: #f1f5f9;
+        }
+
+        body.dark #cookie-banner p {
+          color: #cbd5e1;
+        }
+
+        body.dark #cookie-banner p a,
+        body.dark #cookie-banner p button.link-button {
+          color: #60a5fa;
+          border-bottom-color: #60a5fa;
+        }
+
+        body.dark #rejectCookies {
+          background: #334155;
+          color: #e2e8f0;
+          border-color: #475569;
+        }
+
+        body.dark #manageCookies {
+          background: #1e3a5f;
+          color: #93c5fd;
+          border-color: #1e3a5f;
+        }
+
+        body.dark #cookie-drawer {
+          background: #1e293b;
+          color: #f1f5f9;
+        }
+
+        body.dark .drawer-header h3 {
+          color: #f8fafc;
+        }
+
+        body.dark .drawer-description {
+          color: #94a3b8;
+        }
+
+        body.dark .gtm-item {
+          background: #172554;
+          border-color: #1e3a8a;
+        }
+
+        body.dark .gtm-item .meta b {
+          color: #bfdbfe;
+        }
+
+        body.dark .gtm-item .meta small {
+          color: #94a3b8;
+        }
+
+        body.dark .gpc-notice {
+          background: #422006;
+          border-color: #78350f;
+          color: #fde68a;
+        }
+
+        body.dark .cookie-item {
+          background: #0f172a;
+          border-color: #1e293b;
+        }
+
+        body.dark .cookie-item .meta b {
+          color: #f8fafc;
+        }
+
+        body.dark .cookie-item .meta small {
+          color: #94a3b8;
+        }
+
+        body.dark .toggle {
+          background: #475569;
+        }
+
+        body.dark .toggle.active {
+          background: #3b82f6;
+        }
+
+        body.dark .drawer-actions {
+          background: #1e293b;
+          border-color: #334155;
+        }
+
+        body.dark .btn-secondary {
+          background: #334155;
+          color: #93c5fd;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+          #cookie-banner,
+          #cookie-icon,
+          #cookie-drawer,
+          .toggle,
+          .toggle .dot,
+          .cookie-item {
+            transition: none !important;
+          }
+        }
+      `;
+
+      document.head.appendChild(style);
+
+      /* =======================================================
+         HTML
+         ======================================================= */
+
+      const bannerHTML = `
+        <div
+          id="cookie-banner"
+          role="region"
+          aria-live="polite"
+          aria-labelledby="cookie-banner-title">
+
+          <div class="cookie-brand">
+            <span class="cookie-brand-name">
+              Haberlerver.com
+            </span>
+          </div>
+
+          <h4 id="cookie-banner-title">
+            Çerez ve Gizlilik Tercihleriniz
+          </h4>
+
+          <p>
+            Sitenin temel işlevleri için gerekli teknik teknolojiler
+            kullanılabilir. İsteğe bağlı ölçüm ve kullanıcı deneyimi
+            analiz hizmetleri ise yalnızca tercih ettiğiniz ölçüde
+            etkinleştirilir. Tercihinizi istediğiniz zaman
+            <button
+              type="button"
+              class="link-button"
+              id="inlineManage">
+              ayarlardan
+            </button>
+            değiştirebilirsiniz.
+            Ayrıntılar için
+            <a
+              href="/p/cerez-politikasi.html"
+              rel="nofollow noopener"
+              target="_blank">
+              Çerez Politikası
+            </a>.
+          </p>
+
+          <div class="cookie-actions">
+
+            <button
+              id="acceptCookies"
+              type="button">
+              Tümünü Kabul Et
+            </button>
+
+            <button
+              id="manageCookies"
+              type="button">
+              Tercihleri Yönet
+            </button>
+
+            <button
+              id="rejectCookies"
+              type="button">
+              Yalnızca Zorunlu
+            </button>
+
+          </div>
+        </div>
+
+        <button
+          id="cookie-icon"
+          type="button"
+          title="Çerez Ayarları"
+          aria-label="Çerez Ayarlarını Aç"
+          aria-expanded="false">
+
+          <svg
+            viewBox="0 0 48 48"
+            aria-hidden="true"
+            focusable="false">
+
+            <path
+              d="M31.9 8.2c.5 3.9 3.7 7.1 7.6 7.6A16.9 16.9 0 1 1 32.2 8c-.1.1-.2.1-.3.2Z"
+              fill="none"
+              stroke="white"
+              stroke-width="3.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"/>
+
+            <circle
+              cx="19"
+              cy="20"
+              r="2.1"
+              fill="white"/>
+
+            <circle
+              cx="26"
+              cy="28"
+              r="2.1"
+              fill="white"/>
+
+            <circle
+              cx="17"
+              cy="31"
+              r="2.1"
+              fill="white"/>
+
+            <circle
+              cx="28"
+              cy="18"
+              r="2.1"
+              fill="white"/>
+
+          </svg>
+        </button>
+
+        <aside
+          id="cookie-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cookie-drawer-title"
+          aria-describedby="cookie-drawer-description"
+          aria-hidden="true"
+          hidden>
+
+          <div class="drawer-header">
+
+            <h3 id="cookie-drawer-title">
+              Çerez Tercihleri
+            </h3>
+
+            <button
+              class="drawer-close"
+              id="drawerClose"
+              type="button"
+              aria-label="Kapat">
+              &#215;
+            </button>
+
+          </div>
+
+          <div class="cookie-brand drawer-brand">
+            <span class="cookie-brand-name">
+              Haberlerver.com
+            </span>
+          </div>
+
+          <p
+            id="cookie-drawer-description"
+            class="drawer-description">
+
+            İsteğe bağlı hizmetleri aşağıdan ayrı ayrı
+            açıp kapatabilirsiniz. GTM kapalı olduğunda
+            GTM üzerinden yönetilen ölçüm hizmetleri
+            kullanılamaz.
+
+          </p>
+
+          <div
+            id="gpcNotice"
+            class="gpc-notice"
+            role="status"
+            aria-live="polite">
+
+            Tarayıcınız Global Privacy Control (GPC) sinyali
+            gönderdiği için isteğe bağlı ölçüm hizmetleri ve
+            Google Tag Manager kapalı tutulmaktadır.
+
+          </div>
+
+
+
+
+
+          <div class="gtm-item">
+
+            <div class="meta">
+
+              <b id="gtmLabel">
+                Google Tag Manager
+              </b>
+
+              <small>
+                İsteğe bağlı ölçüm etiketlerinin teknik olarak
+                yüklenmesini ve yönetilmesini sağlayan üçüncü
+                taraf etiket yönetim hizmetidir. Bu hizmet,
+                tek başına Google Analytics, Yandex Metrica
+                veya Microsoft Clarity izni yerine geçmez.
+                Bu üç hizmet için ayrıca tercih yapabilirsiniz.
+              </small>
+
+            </div>
+
+            <button
+              type="button"
+              class="toggle"
+              id="gtmToggle"
+              role="switch"
+              aria-checked="false"
+              aria-labelledby="gtmLabel">
+
+              <span class="dot"></span>
+
+            </button>
+
+          </div>
+
+          <div id="measurementGroup">
+
+
+
+
+
+            <div class="cookie-item">
+
+              <div class="meta">
+
+                <b id="gaLabel">
+                  Google Analytics (GA4)
+                </b>
+
+                <small>
+                  Ziyaret, sayfa görüntüleme, trafik ve
+                  site içi etkileşim istatistiklerinin
+                  ölçülmesi amacıyla kullanılır.
+                </small>
+
+              </div>
+
+              <button
+                type="button"
+                class="toggle"
+                id="gaToggle"
+                role="switch"
+                aria-checked="false"
+                aria-labelledby="gaLabel">
+
+                <span class="dot"></span>
+
+              </button>
+
+            </div>
+
+
+
+
+
+            <div class="cookie-item">
+
+              <div class="meta">
+
+                <b id="yandexLabel">
+                  Yandex Metrica
+                </b>
+
+                <small>
+                  Ziyaret ve etkileşimlerin analiz edilmesi
+                  amacıyla kullanılır. Tıklama, kaydırma ve
+                  oturum davranışları gibi ölçüm özellikleri
+                  etkinleştirilebilir.
+                </small>
+
+              </div>
+
+              <button
+                type="button"
+                class="toggle"
+                id="yandexToggle"
+                role="switch"
+                aria-checked="false"
+                aria-labelledby="yandexLabel">
+
+                <span class="dot"></span>
+
+              </button>
+
+            </div>
+
+
+
+
+
+            <div class="cookie-item">
+
+              <div class="meta">
+
+                <b id="clarityLabel">
+                  Microsoft Clarity
+                </b>
+
+                <small>
+                  Kullanıcı deneyiminin ve sayfa içi
+                  etkileşimlerin analiz edilmesi amacıyla
+                  kullanılır. Isı haritaları ve oturum
+                  davranışı analizi gibi özellikler
+                  kullanılabilir.
+                </small>
+
+              </div>
+
+              <button
+                type="button"
+                class="toggle"
+                id="clarityToggle"
+                role="switch"
+                aria-checked="false"
+                aria-labelledby="clarityLabel">
+
+                <span class="dot"></span>
+
+              </button>
+
+            </div>
+
+
+
+
+
+            <div class="cookie-item mandatory-item">
+
+              <div class="meta">
+
+                <b id="bloggerLabel">
+                  Zorunlu Teknik Teknolojiler
+                </b>
+
+                <small>
+                  Sitenin temel işlevleri, güvenliği ve teknik
+                  çalışması için gerekli olan teknolojiler
+                  bu isteğe bağlı ölçüm tercihleriyle
+                  kapatılmaz.
+                </small>
+
+              </div>
+
+              <button
+                type="button"
+                class="toggle active"
+                id="bloggerToggle"
+                role="switch"
+                aria-checked="true"
+                aria-labelledby="bloggerLabel"
+                disabled>
+
+                <span class="dot"></span>
+
+              </button>
+
+            </div>
+
+          </div>
+
+          <div class="drawer-actions">
+
+            <button
+              class="btn-primary"
+              id="saveDrawer"
+              type="button">
+
+              Tercihleri Kaydet
+
+            </button>
+
+            <button
+              class="btn-secondary"
+              id="selectAll"
+              type="button">
+
+              Tümünü Seç
+
+            </button>
+
+            <button
+              class="btn-secondary"
+              id="deselectAll"
+              type="button">
+
+              Tümünü Kapat
+
+            </button>
+
+          </div>
+
+        </aside>
+      `;
+
+      const wrapper = document.createElement('div');
+
+      wrapper.id = 'hv-cookie-manager';
+      wrapper.setAttribute(
+        'data-nosnippet',
+        'true'
+      );
+
+      wrapper.innerHTML = bannerHTML;
+
+      document.body.appendChild(wrapper);
+
+      /* =======================================================
+         ELEMENTLER
+         ======================================================= */
+
+      const banner =
+        document.getElementById('cookie-banner');
+
+      const icon =
+        document.getElementById('cookie-icon');
+
+      const drawer =
+        document.getElementById('cookie-drawer');
+
+      const saveDrawer =
+        document.getElementById('saveDrawer');
+
+      const selectAll =
+        document.getElementById('selectAll');
+
+      const deselectAll =
+        document.getElementById('deselectAll');
+
+      const manage =
+        document.getElementById('manageCookies');
+
+      const inlineManage =
+        document.getElementById('inlineManage');
+
+      const accept =
+        document.getElementById('acceptCookies');
+
+      const reject =
+        document.getElementById('rejectCookies');
+
+      const closeBtn =
+        document.getElementById('drawerClose');
+
+      const gpcNotice =
+        document.getElementById('gpcNotice');
+
+      const measurementGroup =
+        document.getElementById('measurementGroup');
+
+      const toggles = {
+
+        gtm:
+          document.getElementById('gtmToggle'),
+
+        ga:
+          document.getElementById('gaToggle'),
+
+        yandex:
+          document.getElementById('yandexToggle'),
+
+        clarity:
+          document.getElementById('clarityToggle'),
+
+        blogger:
+          document.getElementById('bloggerToggle')
+
+      };
+
+      /* =======================================================
+         GPC
+         ======================================================= */
+
+      const hasGPC = function () {
+
+        return navigator.globalPrivacyControl === true;
+
+      };
+
+      /* =======================================================
+         MEASUREMENT CONSENT
+         ======================================================= */
+
+      const hasMeasurementConsent =
+        function (p) {
+
+          return !!p.ga ||
+                 !!p.yandex ||
+                 !!p.clarity;
+
+        };
+
+      /* =======================================================
+         ALL DENIED
+         ======================================================= */
+
+      const allDeniedPrefs =
+        function (method) {
+
+          return {
+
+            gtm: false,
+
+            ga: false,
+
+            yandex: false,
+
+            clarity: false,
+
+            blogger: true,
+
+            choiceMethod:
+              method || 'reject_all'
+
+          };
+
+        };
+
+      /* =======================================================
+         NORMALIZE
+         ======================================================= */
+
+      const normalizePrefs =
+        function (p) {
+
+          if (!p ||
+              typeof p !== 'object') {
+
+            return null;
+
+          }
+
+          let gtm =
+            !!p.gtm;
+
+          /*
+            GTM kapalıysa alt tercihler
+            teknik olarak da kapalı olmak zorunda.
+          */
+          let ga =
+            gtm && !!p.ga;
+
+          let yandex =
+            gtm && !!p.yandex;
+
+          let clarity =
+            gtm && !!p.clarity;
+
+          return {
+
+            gtm: gtm,
+
+            ga: ga,
+
+            yandex: yandex,
+
+            clarity: clarity,
+
+            blogger: true,
+
+            choiceMethod:
+              p.choiceMethod ||
+              'custom',
+
+            timestamp:
+              p.timestamp ||
+              null,
+
+            policyVersion:
+              p.policyVersion ||
+              null
+
+          };
+
+        };
+
+      /* =======================================================
+         VALIDATE
+         ======================================================= */
+
+      const isPrefsValid =
+        function (p) {
+
+          if (!p ||
+              typeof p !== 'object') {
+
+            return false;
+
+          }
+
+          if (
+            p.policyVersion !==
+            POLICY_VERSION
+          ) {
+
+            return false;
+
+          }
+
+          if (!p.timestamp) {
+            return false;
+          }
+
+          const time =
+            new Date(
+              p.timestamp
+            ).getTime();
+
+          if (!Number.isFinite(time)) {
+            return false;
+          }
+
+          const ageMs =
+            Date.now() - time;
+
+          const maxMs =
+            CONSENT_MAX_AGE_DAYS *
+            24 *
+            60 *
+            60 *
+            1000;
+
+          return (
+            ageMs >= 0 &&
+            ageMs <= maxMs
+          );
+
+        };
+
+      /* =======================================================
+         SAVE
+         ======================================================= */
+
+      const setPrefs =
+        function (p) {
+
+          const normalized =
+            normalizePrefs(p);
+
+          if (!normalized) {
+            return;
+          }
+
+          normalized.timestamp =
+            new Date().toISOString();
+
+          normalized.policyVersion =
+            POLICY_VERSION;
+
+          try {
+
+            localStorage.setItem(
+              KEY,
+              JSON.stringify(normalized)
+            );
+
+          } catch (e) {
+
+            /*
+              Storage erişilemezse
+              ölçüm kapalı tutulur.
+            */
+
+          }
+
+        };
+
+      /* =======================================================
+         READ
+         ======================================================= */
+
+      const getPrefs =
+        function () {
+
+          try {
+
+            const raw =
+              localStorage.getItem(KEY);
+
+            if (!raw) {
+              return null;
+            }
+
+            const p =
+              JSON.parse(raw);
+
+            if (!isPrefsValid(p)) {
+
+              try {
+
+                localStorage.removeItem(
+                  KEY
+                );
+
+              } catch (e) {}
+
+              return null;
+            }
+
+            return normalizePrefs(p);
+
+          } catch (e) {
+
+            return null;
+
+          }
+
+        };
+
+      /* =======================================================
+         TOGGLE UI
+         ======================================================= */
+
+      const setToggle =
+        function (el, on) {
+
+          if (!el) {
+            return;
+          }
+
+          const active =
+            !!on;
+
+          el.classList.toggle(
+            'active',
+            active
+          );
+
+          el.setAttribute(
+            'aria-checked',
+            active
+              ? 'true'
+              : 'false'
+          );
+
+        };
+
+      /* =======================================================
+         GTM CHILD STATES
+         ======================================================= */
+
+      const updateGTMChildren =
+        function () {
+
+          const gtmOn =
+            toggles.gtm.classList.contains(
+              'active'
+            );
+
+          const gpcOn =
+            hasGPC();
+
+          const canUseChildren =
+            gtmOn && !gpcOn;
+
+          [
+            toggles.ga,
+            toggles.yandex,
+            toggles.clarity
+          ].forEach(function (toggle) {
+
+            toggle.disabled =
+              !canUseChildren;
+
+            toggle.classList.toggle(
+              'child-disabled',
+              !canUseChildren
+            );
+
+          });
+
+          measurementGroup.classList.toggle(
+            'measurement-group-disabled',
+            !canUseChildren
+          );
+
+        };
+
+      /* =======================================================
+         GPC UI
+         ======================================================= */
+
+      const updateGPCInterface =
+        function () {
+
+          const active =
+            hasGPC();
+
+          gpcNotice.classList.toggle(
+            'visible',
+            active
+          );
+
+          if (active) {
+
+            setToggle(
+              toggles.gtm,
+              false
+            );
+
+            setToggle(
+              toggles.ga,
+              false
+            );
+
+            setToggle(
+              toggles.yandex,
+              false
+            );
+
+            setToggle(
+              toggles.clarity,
+              false
+            );
+
+            toggles.gtm.disabled =
+              true;
+
+            selectAll.disabled =
+              true;
+
+            deselectAll.disabled =
+              true;
+
+            saveDrawer.disabled =
+              true;
+
+          } else {
+
+            toggles.gtm.disabled =
+              false;
+
+            selectAll.disabled =
+              false;
+
+            deselectAll.disabled =
+              false;
+
+            saveDrawer.disabled =
+              false;
+
+          }
+
+          updateGTMChildren();
+
+        };
+
+      /* =======================================================
+         READ CURRENT UI
+         ======================================================= */
+
+      const read =
+        function () {
+
+          if (hasGPC()) {
+
+            return allDeniedPrefs(
+              'gpc'
+            );
+
+          }
+
+          const gtmOn =
+            toggles.gtm.classList.contains(
+              'active'
+            );
+
+          return {
+
+            gtm: gtmOn,
+
+            ga:
+              gtmOn &&
+              toggles.ga.classList.contains(
+                'active'
+              ),
+
+            yandex:
+              gtmOn &&
+              toggles.yandex.classList.contains(
+                'active'
+              ),
+
+            clarity:
+              gtmOn &&
+              toggles.clarity.classList.contains(
+                'active'
+              ),
+
+            blogger: true,
+
+            choiceMethod:
+              'custom'
+
+          };
+
+        };
+
+      /* =======================================================
+         CLARITY CONSENT
+         ======================================================= */
+
+      const applyClarityConsent =
+        function (allowed) {
+
+          const analyticsState =
+            allowed
+              ? 'granted'
+              : 'denied';
+
+          window.__hvClarityAnalyticsConsent =
+            analyticsState;
+
+          try {
+
+            if (
+              typeof window.clarity ===
+              'function'
+            ) {
+
+              window.clarity(
+                'consentv2',
+                {
+                  ad_Storage:
+                    'denied',
+
+                  analytics_Storage:
+                    analyticsState
+                }
+              );
+
+            }
+
+          } catch (e) {}
+
+        };
+
+      /* =======================================================
+         DATALAYER CONSENT
+         ======================================================= */
+
+      const consentPayload =
+        function (p) {
+
+          return {
+
+            event:
+              'hv_consent_update',
+
+            hv_gtm:
+              !!p.gtm,
+
+            hv_ga:
+              !!p.ga,
+
+            hv_yandex:
+              !!p.yandex,
+
+            hv_clarity:
+              !!p.clarity,
+
+            hv_blogger:
+              true
+
+          };
+
+        };
+
+      const pushConsentToDataLayer =
+        function (p) {
+
+          window.__hvConsent = {
+
+            gtm:
+              !!p.gtm,
+
+            ga:
+              !!p.ga,
+
+            yandex:
+              !!p.yandex,
+
+            clarity:
+              !!p.clarity,
+
+            blogger:
+              true
+
+          };
+
+          window.dataLayer =
+            window.dataLayer || [];
+
+          window.dataLayer.push(
+            consentPayload(p)
+          );
+
+        };
+
+      /* =======================================================
+         GOOGLE CONSENT UPDATE
+         ======================================================= */
+
+      const updateConsent =
+        function (p) {
+
+          window.gtag(
+            'consent',
+            'update',
+            {
+
+              analytics_storage:
+                p.ga
+                  ? 'granted'
+                  : 'denied',
+
+              ad_storage:
+                'denied',
+
+              ad_user_data:
+                'denied',
+
+              ad_personalization:
+                'denied'
+
+            }
+          );
+
+          applyClarityConsent(
+            !!p.clarity
+          );
+
+          pushConsentToDataLayer(
+            p
+          );
+
+        };
+
+      /* =======================================================
+         GTM LOAD
+         ======================================================= */
+
+      const loadGTM =
+        function (p) {
+
+          /*
+            GTM kullanıcı tarafından
+            onaylanmadıysa YÜKLENMEZ.
+          */
+          if (!p ||
+              !p.gtm) {
+
+            return;
+
+          }
+
+          /*
+            GPC varsa YÜKLENMEZ.
+          */
+          if (hasGPC()) {
+            return;
+          }
+
+          /*
+            Aynı sayfada ikinci kez yüklenmez.
+          */
+          if (
+            document.getElementById(
+              'gtm-script'
+            ) ||
+            window.__hvGTMLoadRequested
+          ) {
+
+            return;
+
+          }
+
+          window.__hvGTMLoadRequested =
+            true;
+
+          const dataLayer =
+            window.dataLayer =
+              window.dataLayer || [];
+
+          /*
+            GTM bootstrap.
+          */
+          dataLayer.push({
+            'gtm.start':
+              new Date().getTime(),
+
+            event:
+              'gtm.js'
+          });
+
+          const script =
+            document.createElement(
+              'script'
+            );
+
+          script.id =
+            'gtm-script';
+
+          script.async =
+            true;
+
+          script.src =
+            'https://www.googletagmanager.com/gtm.js?id=' +
+            encodeURIComponent(
+              IDS.gtm
+            );
+
+          document.head.appendChild(
+            script
+          );
+
+        };
+
+      /* =======================================================
+         CLEANUP COOKIES
+         ======================================================= */
+
+      const expireCookie =
+        function (name) {
+
+          const paths = [
+            '/',
+            location.pathname
+          ];
+
+          paths.forEach(function (path) {
+
+            try {
+
+              document.cookie =
+                name +
+                '=;' +
+                'expires=Thu, 01 Jan 1970 00:00:00 GMT;' +
+                'path=' +
+                path;
+
+            } catch (e) {}
+
+          });
+
+        };
+
+      const expireCookiesByPrefix =
+        function (prefix) {
+
+          try {
+
+            const cookies =
+              document.cookie
+                ? document.cookie.split(';')
+                : [];
+
+            cookies.forEach(
+              function (cookie) {
+
+                const name =
+                  cookie
+                    .split('=')[0]
+                    .trim();
+
+                if (
+                  name === prefix ||
+                  name.indexOf(
+                    prefix + '_'
+                  ) === 0
+                ) {
+
+                  expireCookie(name);
+
+                }
+
+              }
+            );
+
+          } catch (e) {}
+
+        };
+
+      const cleanupMeasurementCookies =
+        function (p) {
+
+          if (!p.ga) {
+
+            expireCookie('_gid');
+            expireCookiesByPrefix('_ga');
+
+          }
+
+          if (!p.clarity) {
+
+            expireCookie('_clck');
+            expireCookie('_clsk');
+
+          }
+
+          if (!p.yandex) {
+
+            expireCookie('_ym_d');
+            expireCookie('_ym_isad');
+            expireCookie('_ym_uid');
+            expireCookie('_ym_retryReqs');
+
+          }
+
+        };
+
+      /* =======================================================
+         CONSENT SYNC
+         ======================================================= */
+
+      const syncConsent =
+        function (p, method) {
+
+          let normalized =
+            normalizePrefs(p);
+
+          if (!normalized) {
+
+            normalized =
+              allDeniedPrefs(
+                method || 'reject_all'
+              );
+
+          }
+
+          if (hasGPC()) {
+
+            normalized =
+              allDeniedPrefs(
+                'gpc'
+              );
+
+          }
+
+          normalized.choiceMethod =
+            method ||
+            normalized.choiceMethod ||
+            'custom';
+
+          setPrefs(
+            normalized
+          );
+
+          updateConsent(
+            normalized
+          );
+
+          loadGTM(
+            normalized
+          );
+
+        };
+
+      /* =======================================================
+         SAME CHOICES
+         ======================================================= */
+
+      const sameConsentChoices =
+        function (a, b) {
+
+          if (!a || !b) {
+            return false;
+          }
+
+          return (
+            !!a.gtm === !!b.gtm &&
+            !!a.ga === !!b.ga &&
+            !!a.yandex === !!b.yandex &&
+            !!a.clarity === !!b.clarity
+          );
+
+        };
+
+      /* =======================================================
+         VISIBILITY
+         ======================================================= */
+
+      const showIcon =
+        function () {
+
+          banner.classList.remove(
+            'visible'
+          );
+
+          banner.style.display =
+            'none';
+
+          icon.style.display =
+            'flex';
+
+          requestAnimationFrame(
+            function () {
+
+              requestAnimationFrame(
+                function () {
+
+                  icon.classList.add(
+                    'visible'
+                  );
+
+                }
+              );
+
+            }
+          );
+
+        };
+
+      const hideIcon =
+        function () {
+
+          icon.classList.remove(
+            'visible'
+          );
+
+          if (prefersReducedMotion) {
+
+            icon.style.display =
+              'none';
+
+            return;
+          }
+
+          window.setTimeout(
+            function () {
+
+              if (
+                !icon.classList.contains(
+                  'visible'
+                )
+              ) {
+
+                icon.style.display =
+                  'none';
+
+              }
+
+            },
+            300
+          );
+
+        };
+
+      const showBanner =
+        function () {
+
+          hideIcon();
+
+          banner.style.display =
+            'block';
+
+          requestAnimationFrame(
+            function () {
+
+              requestAnimationFrame(
+                function () {
+
+                  banner.classList.add(
+                    'visible'
+                  );
+
+                }
+              );
+
+            }
+          );
+
+        };
+
+      const hideBanner =
+        function () {
+
+          banner.classList.remove(
+            'visible'
+          );
+
+          if (prefersReducedMotion) {
+
+            banner.style.display =
+              'none';
+
+            return;
+
+          }
+
+          window.setTimeout(
+            function () {
+
+              banner.style.display =
+                'none';
+
+            },
+            350
+          );
+
+        };
+
+      /* =======================================================
+         DRAWER
+         ======================================================= */
+
+      let lastFocusedEl =
+        null;
+
+      let drawerHideTimer =
+        null;
+
+      const getFocusable =
+        function (container) {
+
+          return Array.from(
+            container.querySelectorAll(
+              'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            )
+          ).filter(
+            function (el) {
+
+              return (
+                el.offsetParent !== null
+              );
+
+            }
+          );
+
+        };
+
+      const openDrawer =
+        function (open) {
+
+          if (drawerHideTimer) {
+
+            window.clearTimeout(
+              drawerHideTimer
+            );
+
+            drawerHideTimer =
+              null;
+
+          }
+
+          if (open) {
+
+            lastFocusedEl =
+              document.activeElement;
+
+            hideBanner();
+            hideIcon();
+
+            drawer.removeAttribute(
+              'hidden'
+            );
+
+            drawer.setAttribute(
+              'aria-hidden',
+              'false'
+            );
+
+            drawer.setAttribute(
+              'aria-modal',
+              'true'
+            );
+
+            drawer.inert =
+              false;
+
+            drawer.removeAttribute(
+              'inert'
+            );
+
+            drawer.classList.add(
+              'open'
+            );
+
+            icon.setAttribute(
+              'aria-expanded',
+              'true'
+            );
+
+            document.documentElement
+              .style
+              .overflow =
+              'hidden';
+
+            updateGPCInterface();
+
+            requestAnimationFrame(
+              function () {
+
+                const focusable =
+                  getFocusable(
+                    drawer
+                  );
+
+                if (
+                  focusable.length
+                ) {
+
+                  focusable[0].focus();
+
+                }
+
+              }
+            );
+
+          } else {
+
+            drawer.setAttribute(
+              'aria-hidden',
+              'true'
+            );
+
+            drawer.removeAttribute(
+              'aria-modal'
+            );
+
+            drawer.inert =
+              true;
+
+            drawer.setAttribute(
+              'inert',
+              ''
+            );
+
+            drawer.classList.remove(
+              'open'
+            );
+
+            icon.setAttribute(
+              'aria-expanded',
+              'false'
+            );
+
+            document.documentElement
+              .style
+              .overflow =
+              '';
+
+            if (
+              lastFocusedEl &&
+              typeof lastFocusedEl.focus ===
+              'function'
+            ) {
+
+              try {
+
+                lastFocusedEl.focus();
+
+              } catch (e) {}
+
+            }
+
+            if (prefersReducedMotion) {
+
+              drawer.setAttribute(
+                'hidden',
+                ''
+              );
+
+            } else {
+
+              drawerHideTimer =
+                window.setTimeout(
+                  function () {
+
+                    drawer.setAttribute(
+                      'hidden',
+                      ''
+                    );
+
+                    drawerHideTimer =
+                      null;
+
+                  },
+                  300
+                );
+
+            }
+
+            if (getPrefs()) {
+
+              showIcon();
+
+            } else {
+
+              showBanner();
+
+            }
+
+          }
+
+        };
+
+      drawer.inert =
+        true;
+
+      drawer.setAttribute(
+        'inert',
+        ''
+      );
+
+      /* =======================================================
+         KEYBOARD
+         ======================================================= */
+
+      document.addEventListener(
+        'keydown',
+        function (e) {
+
+          if (e.key === 'Escape') {
+
+            if (
+              !drawer.classList.contains(
+                'open'
+              )
+            ) {
+
+              return;
+
+            }
+
+            e.preventDefault();
+
+            openDrawer(false);
+
+            return;
+
+          }
+
+          if (
+            e.key !== 'Tab' ||
+            !drawer.classList.contains(
+              'open'
+            )
+          ) {
+
+            return;
+
+          }
+
+          const focusable =
+            getFocusable(
+              drawer
+            );
+
+          if (!focusable.length) {
+            return;
+          }
+
+          const first =
+            focusable[0];
+
+          const last =
+            focusable[
+              focusable.length - 1
+            ];
+
+          if (
+            e.shiftKey &&
+            document.activeElement === first
+          ) {
+
+            e.preventDefault();
+            last.focus();
+
+          } else if (
+            !e.shiftKey &&
+            document.activeElement === last
+          ) {
+
+            e.preventDefault();
+            first.focus();
+
+          }
+
+        }
+      );
+
+      /* =======================================================
+         GTM TOGGLE
+         ======================================================= */
+
+      toggles.gtm.addEventListener(
+        'click',
+        function () {
+
+          if (hasGPC()) {
+            return;
+          }
+
+          const next =
+            !toggles.gtm.classList.contains(
+              'active'
+            );
+
+          setToggle(
+            toggles.gtm,
+            next
+          );
+
+          /*
+            GTM kapatılıyorsa bütün
+            alt ölçüm izinleri de kapanır.
+          */
+          if (!next) {
+
+            setToggle(
+              toggles.ga,
+              false
+            );
+
+            setToggle(
+              toggles.yandex,
+              false
+            );
+
+            setToggle(
+              toggles.clarity,
+              false
+            );
+
+          }
+
+          updateGTMChildren();
+
+        }
+      );
+
+      /* =======================================================
+         CHILD TOGGLES
+         ======================================================= */
+
+      [
+        toggles.ga,
+        toggles.yandex,
+        toggles.clarity
+      ].forEach(
+        function (toggle) {
+
+          toggle.addEventListener(
+            'click',
+            function () {
+
+              if (
+                hasGPC() ||
+                toggles.gtm.disabled ||
+                !toggles.gtm.classList.contains(
+                  'active'
+                )
+              ) {
+
+                return;
+
+              }
+
+              const next =
+                !toggle.classList.contains(
+                  'active'
+                );
+
+              setToggle(
+                toggle,
+                next
+              );
+
+            }
+          );
+
+        }
+      );
+
+      /* =======================================================
+         SELECT ALL
+         ======================================================= */
+
+      selectAll.addEventListener(
+        'click',
+        function () {
+
+          if (hasGPC()) {
+            return;
+          }
+
+          /*
+            Tümünü Seç:
+            GTM de açık,
+            üç alt hizmet de açık.
+          */
+
+          setToggle(
+            toggles.gtm,
+            true
+          );
+
+          setToggle(
+            toggles.ga,
+            true
+          );
+
+          setToggle(
+            toggles.yandex,
+            true
+          );
+
+          setToggle(
+            toggles.clarity,
+            true
+          );
+
+          updateGTMChildren();
+
+        }
+      );
+
+      /* =======================================================
+         DESELECT ALL
+         ======================================================= */
+
+      deselectAll.addEventListener(
+        'click',
+        function () {
+
+          if (hasGPC()) {
+            return;
+          }
+
+          setToggle(
+            toggles.gtm,
+            false
+          );
+
+          setToggle(
+            toggles.ga,
+            false
+          );
+
+          setToggle(
+            toggles.yandex,
+            false
+          );
+
+          setToggle(
+            toggles.clarity,
+            false
+          );
+
+          updateGTMChildren();
+
+        }
+      );
+
+      /* =======================================================
+         ACCEPT ALL
+         ======================================================= */
+
+      accept.addEventListener(
+        'click',
+        function () {
+
+          if (hasGPC()) {
+            return;
+          }
+
+          const hadGTM =
+            !!document.getElementById(
+              'gtm-script'
+            );
+
+          const previousPrefs =
+            getPrefs();
+
+          const p = {
+
+            gtm: true,
+
+            ga: true,
+
+            yandex: true,
+
+            clarity: true,
+
+            blogger: true,
+
+            choiceMethod:
+              'accept_all'
+
+          };
+
+          setToggle(
+            toggles.gtm,
+            true
+          );
+
+          setToggle(
+            toggles.ga,
+            true
+          );
+
+          setToggle(
+            toggles.yandex,
+            true
+          );
+
+          setToggle(
+            toggles.clarity,
+            true
+          );
+
+          updateGTMChildren();
+
+          syncConsent(
+            p,
+            'accept_all'
+          );
+
+          hideBanner();
+          showIcon();
+
+          /*
+            İlk kabulde GTM zaten yoktur.
+            Gereksiz reload yapmıyoruz.
+
+            Daha önce GTM mevcutsa ve tercih
+            değişmişse temiz sayfa gerekir.
+          */
+          if (
+            hadGTM &&
+            previousPrefs &&
+            !sameConsentChoices(
+              previousPrefs,
+              p
+            )
+          ) {
+
+            window.setTimeout(
+              function () {
+                window.location.reload();
+              },
+              50
+            );
+
+          }
+
+        }
+      );
+
+      /* =======================================================
+         REJECT ALL
+         ======================================================= */
+
+      reject.addEventListener(
+        'click',
+        function () {
+
+          const hadGTM =
+            !!document.getElementById(
+              'gtm-script'
+            );
+
+          const previousPrefs =
+            getPrefs();
+
+          const p =
+            allDeniedPrefs(
+              hasGPC()
+                ? 'gpc'
+                : 'reject_all'
+            );
+
+          setToggle(
+            toggles.gtm,
+            false
+          );
+
+          setToggle(
+            toggles.ga,
+            false
+          );
+
+          setToggle(
+            toggles.yandex,
+            false
+          );
+
+          setToggle(
+            toggles.clarity,
+            false
+          );
+
+          updateGTMChildren();
+
+          syncConsent(
+            p,
+            p.choiceMethod
+          );
+
+          cleanupMeasurementCookies(
+            p
+          );
+
+          hideBanner();
+          showIcon();
+
+          /*
+            Daha önce GTM yüklüyse,
+            kapatma sonrası temiz sayfa bağlamı.
+          */
+          if (
+            hadGTM &&
+            previousPrefs &&
+            !sameConsentChoices(
+              previousPrefs,
+              p
+            )
+          ) {
+
+            window.setTimeout(
+              function () {
+
+                window.location.reload();
+
+              },
+              50
+            );
+
+          }
+
+        }
+      );
+
+      /* =======================================================
+         MANAGE
+         ======================================================= */
+
+      manage.addEventListener(
+        'click',
+        function () {
+          openDrawer(true);
+        }
+      );
+
+      inlineManage.addEventListener(
+        'click',
+        function () {
+          openDrawer(true);
+        }
+      );
+
+      icon.addEventListener(
+        'click',
+        function () {
+          openDrawer(true);
+        }
+      );
+
+      closeBtn.addEventListener(
+        'click',
+        function () {
+          openDrawer(false);
+        }
+      );
+
+      /* =======================================================
+         SAVE DRAWER
+         ======================================================= */
+
+      saveDrawer.addEventListener(
+        'click',
+        function () {
+
+          if (hasGPC()) {
+            return;
+          }
+
+          const hadGTM =
+            !!document.getElementById(
+              'gtm-script'
+            );
+
+          const previousPrefs =
+            getPrefs();
+
+          const p =
+            read();
+
+          const changed =
+            !sameConsentChoices(
+              previousPrefs,
+              p
+            );
+
+          syncConsent(
+            p,
+            'custom'
+          );
+
+          cleanupMeasurementCookies(
+            p
+          );
+
+          openDrawer(false);
+
+          /*
+            GTM daha önce yüklüyse,
+            herhangi bir izin değişikliğinde
+            temiz sayfa bağlamı oluşturuyoruz.
+
+            Böylece mevcut GTM Page View /
+            gtm.js tabanlı tetikleyicilerin
+            yeni tercih ile doğru çalışması garanti
+            altına alınır.
+          */
+          if (
+            hadGTM &&
+            changed
+          ) {
+
+            window.setTimeout(
+              function () {
+
+                window.location.reload();
+
+              },
+              50
+            );
+
+          }
+
+        }
+      );
+
+      /* =======================================================
+         INITIAL STATE
+         ======================================================= */
+
+      const initialPrefs =
+        getPrefs();
+
+      /*
+        GPC her zaman önceliklidir.
+      */
+      if (hasGPC()) {
+
+        const denied =
+          allDeniedPrefs(
+            'gpc'
+          );
+
+        setToggle(
+          toggles.gtm,
+          false
+        );
+
+        setToggle(
+          toggles.ga,
+          false
+        );
+
+        setToggle(
+          toggles.yandex,
+          false
+        );
+
+        setToggle(
+          toggles.clarity,
+          false
+        );
+
+        updateConsent(
+          denied
+        );
+
+        updateGPCInterface();
+
+        /*
+          GPC durumunda banner gösterilmiyor.
+        */
+        showIcon();
+
+      } else if (!initialPrefs) {
+
+        /*
+          İlk ziyaret:
+          HİÇBİR ÖLÇÜM
+          HİÇBİR GTM
+          yüklenmez.
+        */
+
+        setToggle(
+          toggles.gtm,
+          false
+        );
+
+        setToggle(
+          toggles.ga,
+          false
+        );
+
+        setToggle(
+          toggles.yandex,
+          false
+        );
+
+        setToggle(
+          toggles.clarity,
+          false
+        );
+
+        updateGTMChildren();
+
+        /*
+          Banner gösterilir.
+        */
+        showBanner();
+
+      } else {
+
+        /*
+          Geçerli kayıtlı tercih.
+        */
+
+        setToggle(
+          toggles.gtm,
+          !!initialPrefs.gtm
+        );
+
+        setToggle(
+          toggles.ga,
+          !!initialPrefs.ga
+        );
+
+        setToggle(
+          toggles.yandex,
+          !!initialPrefs.yandex
+        );
+
+        setToggle(
+          toggles.clarity,
+          !!initialPrefs.clarity
+        );
+
+        setToggle(
+          toggles.blogger,
+          true
+        );
+
+        updateGTMChildren();
+
+        /*
+          Consent durumu hazırlanır.
+        */
+        updateConsent(
+          initialPrefs
+        );
+
+        /*
+          Yalnızca GTM izni varsa GTM yüklenir.
+        */
+        loadGTM(
+          initialPrefs
+        );
+
+        showIcon();
+
+      }
+
+      /* =======================================================
+         STORAGE EVENT
+         ======================================================= */
+
+      window.addEventListener(
+        'storage',
+        function (e) {
+
+          if (e.key !== KEY) {
+            return;
+          }
+
+          const p =
+            getPrefs();
+
+          if (!p) {
+
+            if (
+              document.getElementById(
+                'gtm-script'
+              )
+            ) {
+
+              window.location.reload();
+
+            } else {
+
+              showBanner();
+
+            }
+
+            return;
+          }
+
+          const current =
+            window.__hvConsent ||
+            null;
+
+          const choicesChanged =
+            !current ||
+            !!current.gtm !== !!p.gtm ||
+            !!current.ga !== !!p.ga ||
+            !!current.yandex !== !!p.yandex ||
+            !!current.clarity !== !!p.clarity;
+
+          setToggle(
+            toggles.gtm,
+            !!p.gtm
+          );
+
+          setToggle(
+            toggles.ga,
+            !!p.ga
+          );
+
+          setToggle(
+            toggles.yandex,
+            !!p.yandex
+          );
+
+          setToggle(
+            toggles.clarity,
+            !!p.clarity
+          );
+
+          updateGTMChildren();
+
+          updateConsent(
+            p
+          );
+
+          loadGTM(
+            p
+          );
+
+          showIcon();
+
+          /*
+            Başka sekmede tercih değiştiyse
+            mevcut GTM bağlamını temizle.
+          */
+          if (
+            choicesChanged &&
+            document.getElementById(
+              'gtm-script'
+            )
+          ) {
+
+            window.setTimeout(
+              function () {
+
+                window.location.reload();
+
+              },
+              50
+            );
+
+          }
+
+        }
+      );
+
+      /* =======================================================
+         BFCACHE
+         ======================================================= */
+
+      window.addEventListener(
+        'pageshow',
+        function (event) {
+
+          if (!event.persisted) {
+            return;
+          }
+
+          if (hasGPC()) {
+
+            const denied =
+              allDeniedPrefs(
+                'gpc'
+              );
+
+            updateConsent(
+              denied
+            );
+
+            if (
+              document.getElementById(
+                'gtm-script'
+              )
+            ) {
+
+              window.location.reload();
+
+              return;
+
+            }
+
+            updateGPCInterface();
+            showIcon();
+
+            return;
+
+          }
+
+          const p =
+            getPrefs();
+
+          if (!p) {
+
+            if (
+              document.getElementById(
+                'gtm-script'
+              )
+            ) {
+
+              window.location.reload();
+
+              return;
+
+            }
+
+            showBanner();
+
+            return;
+
+          }
+
+          updateConsent(
+            p
+          );
+
+          loadGTM(
+            p
+          );
+
+          showIcon();
+
+        }
+      );
+
+      /* =======================================================
+         VISIBILITY + GPC
+         ======================================================= */
+
+      document.addEventListener(
+        'visibilitychange',
+        function () {
+
+          if (
+            document.visibilityState !==
+            'visible'
+          ) {
+
+            return;
+
+          }
+
+          if (!hasGPC()) {
+            return;
+          }
+
+          const existingGTM =
+            document.getElementById(
+              'gtm-script'
+            );
+
+          if (existingGTM) {
+
+            window.location.reload();
+
+            return;
+
+          }
+
+          updateGPCInterface();
+
+        }
+      );
+
+      /* =======================================================
+         SON UI SENKRONİZASYONU
+         ======================================================= */
+
+      updateGPCInterface();
+
+    });
+  })();
+  //]]>
+
+  } });
+  /* BİTİŞ: KVKK / çerez tercihleri ve izin tabanlı ölçüm yönetimi */
   /* BAŞLANGIÇ: Ana sayfa haber grid’i ve etiket feed kartları (V0 kaynak bloğu #49) */
   modules.push({ id: "home-grid", run: function () {
 
@@ -6953,6 +11050,119 @@ if (!window.__aiPaylasimBariBaslatildi) {
   } });
   /* BİTİŞ: Statik sayfa içindekiler tablosu ve yorum formu yardımcıları */
 
+
+  /* BAŞLANGIÇ: Reklam alanlarının görünürlüğünün ve boş slotların yönetilmesi */
+  modules.push({ id: "ad-visibility-control", run: function () {
+
+//<![CDATA[
+(function () {
+  'use strict';
+  function inlineHidden(el) {
+    if (!el) return true;
+    if (el.hidden || el.getAttribute('aria-hidden') === 'true') return true;
+    if (el.classList.contains('hidden') || el.classList.contains('invisible') || el.classList.contains('hv-ad-empty')) return true;
+    var inlineDisplay = (el.style && el.style.display || '').replace(/\s/g, '').toLowerCase();
+    if (inlineDisplay === 'none') return true;
+    var css = window.getComputedStyle ? window.getComputedStyle(el) : null;
+    return !!(css && (css.display === 'none' || css.visibility === 'hidden'));
+  }
+  function firstLiveWidget(root) {
+    if (!root) return null;
+    var list = root.querySelectorAll('.hv-ad-managed-widget,.widget');
+    for (var i = 0; i < list.length; i++) {
+      if (!inlineHidden(list[i])) return list[i];
+    }
+    return null;
+  }
+  function collapseIfMissing(root) {
+    if (!root) return;
+    var widget = firstLiveWidget(root);
+    if (!widget) root.classList.add('hv-ad-empty');
+    else root.classList.remove('hv-ad-empty');
+  }
+  function manageAdSlots() {
+    collapseIfMissing(document.querySelector('.hv-masthead-ad-wrap'));
+    collapseIfMissing(document.getElementById('hv-slider-under-ad-wrap'));
+
+    var slotIds = [
+      'hv-static-ad-top', 'hv-static-ad-lower', 'hv-static-ad-lower-second',
+      'hv-static-ad-end', 'hv-static-ad-end-second',
+      'hv-sidebar-ad-before-slot', 'hv-sidebar-ad-after-slot'
+    ];
+    slotIds.forEach(function (id) {
+      var slot = document.getElementById(id);
+      if (!slot) return;
+      var widget = firstLiveWidget(slot);
+      if (!widget) {
+        slot.classList.add('hv-ad-empty');
+        var placeholder = slot.querySelector('.hv-ad-slot-placeholder,.hv-ad-widget-placeholder,.piki-ads,.piki-ads-res');
+        if (placeholder) placeholder.remove();
+      } else {
+        slot.classList.remove('hv-ad-empty');
+      }
+    });
+
+    document.querySelectorAll('.hv-static-ad-pair').forEach(function (pair) {
+      if (!firstLiveWidget(pair)) pair.classList.add('hv-ad-empty');
+      else pair.classList.remove('hv-ad-empty');
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', manageAdSlots, { once: true });
+  } else {
+    manageAdSlots();
+  }
+})();
+//]]>
+
+  } });
+  /* BİTİŞ: Reklam alanlarının görünürlüğünün ve boş slotların yönetilmesi */
+
+  /* BAŞLANGIÇ: Eski yorum formu açıcılarının kaldırılması */
+  modules.push({ id: "legacy-comment-opener-cleanup", run: function () {
+
+//<![CDATA[
+/* v51: remove legacy openers even if Blogger reinserts them after its threaded-comment render. */
+(function () {
+  'use strict';
+  function removeLegacyOpeners(root) {
+    var scope = root || document;
+    if (scope.nodeType === 1 && scope.matches && scope.matches('#show-comment-form')) {
+      scope.remove();
+      return;
+    }
+    if (!scope.querySelectorAll) return;
+    scope.querySelectorAll('#show-comment-form').forEach(function (button) {
+      button.remove();
+    });
+  }
+  function init() {
+    removeLegacyOpeners(document);
+    if (document.body && window.MutationObserver) {
+      var observer = new MutationObserver(function (records) {
+        records.forEach(function (record) {
+          record.addedNodes.forEach(function (node) {
+            if (node.nodeType !== 1) return;
+            if ((node.matches && node.matches('#show-comment-form')) ||
+                (node.querySelector && node.querySelector('#show-comment-form'))) {
+              removeLegacyOpeners(node);
+            }
+          });
+        });
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+})();
+//]]>
+
+  } });
+  /* BİTİŞ: Eski yorum formu açıcılarının kaldırılması */
   /* BAŞLANGIÇ: Yalnızca mega menü ülke adlarına bağlantı ve makale meta tarih biçimlendirmesi (V0 kaynak bloğu #70) */
   modules.push({ id: "country-autolink", run: function () {
 
@@ -7136,7 +11346,7 @@ if (!window.__aiPaylasimBariBaslatildi) {
       module.run();
     } catch (error) {
       if (window.console && typeof window.console.error === 'function') {
-        window.console.error('[Haberlerver V1] JavaScript modülü çalıştırılamadı: ' + module.id, error);
+        window.console.error('[Haberlerver V2] JavaScript modülü çalıştırılamadı: ' + module.id, error);
       }
     }
   });
